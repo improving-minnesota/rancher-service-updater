@@ -35,10 +35,11 @@ func requestSuccess(w http.ResponseWriter, r *http.Request){
 
 	err := json.NewDecoder(r.Body).Decode(&vargs)
 	if err != nil {
+		fmt.Printf(err.Error())
 		Error(w, err.Error(), 400)
 		return
 	} else {
-		if len(vargs.Url) == 0 || len(vargs.AccessKey) == 0 || len(vargs.SecretKey) == 0 || len(vargs.Service) == 0 {
+		if len(vargs.Url) == 0 || len(vargs.AccessKey) == 0 || len(vargs.SecretKey) == 0 {
 			Error(w, "Rancher credentials not set", 400)
 			return
 		}
@@ -114,11 +115,13 @@ func upgradeRancher(vargs Rancher) {
 					foundImage = parts[1]
 					foundVer = parts[2]
 					if foundImage == wantedImage && ((foundVer < wantedVer) || (wantedVer == "latest")) {
+						fmt.Printf("Trying to upgrade...\n")
 						err := doUpgrade(vargs, svc, rancher)
 						if err != nil {
 							fmt.Printf(err.Error())
 						}
-						if vargs.Confirm {
+						if (vargs.Confirm) {
+							fmt.Printf("Trying to confirm...\n")
 							err := confirmUpgrade(vargs, svc, rancher)
 							if err != nil {
 								fmt.Printf(err.Error())
