@@ -63,7 +63,7 @@ func upgradeRancher(vargs Rancher) {
 		parts := strings.SplitN(vargs.Service, "/", 2)
 		wantedStack = parts[0]
 		wantedService = parts[1]
-	} else {
+	} else if vargs.Service != "" {
 		wantedService = vargs.Service
 	}
 
