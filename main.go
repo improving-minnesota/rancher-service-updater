@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"github.com/rancher/go-rancher/client"
 	"os"
-	"github.com/ashwanthkumar/slack-go-webhook"
+	"github.com/ahaynssen/slack-go-webhook"
 )
 
 type Rancher struct {
@@ -97,13 +97,15 @@ func upgradeRancher(vargs Rancher) {
 							if (vargs.Confirm) {
 								fmt.Println("Trying to confirm...")
 								err := confirmUpgrade(vargs, svc, rancher)
+								url := fmt.Sprintf("https://rancher.connectedfleet.io/env/%s/apps/stacks/%s", svc.AccountId, svc.EnvironmentId)
 								if err != nil {
 									fmt.Println("Unable to upgrade service %s: %s\n", vargs.Service, err.Error())
-									message := fmt.Sprintf("Unable to confirm upgrade to `%s`. \nCheck status at https://rancher.connectedfleet.io", vargs.Service)
+									message := fmt.Sprintf("Unable to confirm upgrade to `%s`. \nCheck status at <%[2]s|%[1]s>", vargs.Service, url)
 									slackMessage("danger", message)
 								} else {
 									fmt.Printf("Upgraded %s to %s\n", svc.Name, vargs.Image)
-									message := fmt.Sprintf("Successfully upgraded `%v`", vargs.Service)
+									message := fmt.Sprintf("`%[1]s` has been successfully upgraded to `%[2]s`"+
+											       "in Dev\n View `%[1]s` in Rancher: <%[3]s|%[1]s>", vargs.Service, wantedVer, url)
 									slackMessage("good", message)
 
 								}
@@ -179,10 +181,10 @@ func Error(w http.ResponseWriter, error string, code int) {
 
 func slackMessage(status string, message string) {
 	var webhookUrl = os.Getenv("SLACK_WEBHOOK")
+
+	attachment := slack.Attachment {Color: &status, Text: &message}
 	mrkdwn := "text"
-	var array[] *string
-	array = append(array, &mrkdwn )
-	attachment := slack.Attachment {Color: &status, Text: &message, Mrkdwn: array}
+	attachment.AddMrkdwn(&mrkdwn)
 	payload := slack.Payload {
 		Username: "rancher-updater-service",
 		Attachments: []slack.Attachment{attachment},
