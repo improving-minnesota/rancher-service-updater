@@ -179,10 +179,10 @@ func Error(w http.ResponseWriter, error string, code int) {
 
 func slackMessage(status string, message string) {
 	var webhookUrl = os.Getenv("SLACK_WEBHOOK")
-	mkdwn := "text"
+	mrkdwn := "text"
 	var array[] *string
-	array = append(array, &mkdwn )
-	attachment := slack.Attachment {Color: &status, Text: &message, Mkdwn: array}
+	array = append(array, &mrkdwn )
+	attachment := slack.Attachment {Color: &status, Text: &message, Mrkdwn: array}
 	payload := slack.Payload {
 		Username: "rancher-updater-service",
 		Attachments: []slack.Attachment{attachment},
