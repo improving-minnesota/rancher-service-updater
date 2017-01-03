@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"github.com/rancher/go-rancher/client"
 	"os"
+	"github.com/ashwanthkumar/slack-go-webhook"
 )
 
 type Rancher struct {
@@ -22,7 +23,7 @@ type Rancher struct {
 }
 
 func main() {
-	fmt.Printf("Started upgrade server\n")
+	fmt.Println("Started upgrade server")
 	http.HandleFunc("/upgrade/", requestSuccess)
 	http.ListenAndServe(":8080", nil)
 }
@@ -57,15 +58,8 @@ func upgradeRancher(vargs Rancher) {
 		wantedImage = parts[1]
 		wantedVer = parts[2]
 	}
-
-	var wantedService, wantedStack string
-	if strings.Contains(vargs.Service, "/") {
-		parts := strings.SplitN(vargs.Service, "/", 2)
-		wantedStack = parts[0]
-		wantedService = parts[1]
-	} else if vargs.Service != "" {
-		wantedService = vargs.Service
-	}
+	parts := strings.Split(wantedImage, "/")
+	vargs.Service = parts[1]
 
 	rancher, err := client.NewRancherClient(&client.ClientOpts{
 		Url:       vargs.Url,
@@ -76,26 +70,6 @@ func upgradeRancher(vargs Rancher) {
 	if err != nil {
 		fmt.Printf("Failed to create rancher client: %s\n", err)
 		return
-	}
-
-	var stackId string
-	if wantedStack != "" {
-		environments, err := rancher.Environment.List(&client.ListOpts{})
-		if err != nil {
-			fmt.Printf("Failed to list rancher environments: %s\n", err)
-			return
-		}
-
-		for _, env := range environments.Data {
-			if env.Name == wantedStack {
-				stackId = env.Id
-			}
-		}
-
-		if stackId == "" {
-			fmt.Printf("Unable to find stack %s\n", wantedStack)
-			return
-		}
 	}
 
 	services, err := rancher.Service.List(&client.ListOpts{})
@@ -115,31 +89,27 @@ func upgradeRancher(vargs Rancher) {
 					foundImage = parts[1]
 					foundVer = parts[2]
 					if foundImage == wantedImage && ((foundVer < wantedVer) || (wantedVer == "latest")) {
-						fmt.Printf("Trying to upgrade...\n")
+						fmt.Println("Trying to upgrade...")
 						err := doUpgrade(vargs, svc, rancher)
 						if err != nil {
-							fmt.Printf(err.Error())
-						}
-						if (vargs.Confirm) {
-							fmt.Printf("Trying to confirm...\n")
-							err := confirmUpgrade(vargs, svc, rancher)
-							if err != nil {
-								fmt.Printf(err.Error())
+							fmt.Println(err.Error())
+						} else {
+							if (vargs.Confirm) {
+								fmt.Println("Trying to confirm...")
+								err := confirmUpgrade(vargs, svc, rancher)
+								if err != nil {
+									fmt.Println("Unable to upgrade service %s: %s\n", vargs.Service, err.Error())
+									message := fmt.Sprintf("Unable to confirm upgrade to `%s`. \nCheck status at https://rancher.connectedfleet.io", vargs.Service)
+									slackMessage("danger", message)
+								} else {
+									fmt.Printf("Upgraded %s to %s\n", svc.Name, vargs.Image)
+									message := fmt.Sprintf("Successfully upgraded `%v`", vargs.Service)
+									slackMessage("good", message)
+
+								}
 							}
 						}
 						continue
-					}
-					if svc.Name == wantedService && ((wantedStack != "" && svc.EnvironmentId == stackId) || wantedStack == "") {
-						err := doUpgrade(vargs, svc, rancher)
-						if err != nil {
-							fmt.Printf(err.Error())
-						}
-						if vargs.Confirm {
-							err := confirmUpgrade(vargs, svc, rancher)
-							if err != nil {
-								fmt.Printf(err.Error())
-							}
-						}
 					}
 				}
 			}
@@ -157,13 +127,7 @@ func doUpgrade(vargs Rancher, service client.Service, rancher *client.RancherCli
 		StartFirst:             vargs.StartFirst,
 	}
 	upgrade.ToServiceStrategy = &client.ToServiceUpgradeStrategy{}
-
 	_, err := rancher.Service.ActionUpgrade(&service, upgrade)
-	if err != nil {
-		fmt.Printf("Unable to upgrade service %s: %s\n", vargs.Service, err)
-	} else {
-		fmt.Printf("Upgraded %s to %s\n", service.Name, vargs.Image)
-	}
 	return err
 }
 
@@ -174,19 +138,16 @@ func confirmUpgrade(vargs Rancher, service client.Service, rancher *client.Ranch
 			return nil, e
 		}
 		if s.State != "upgraded" {
-			return nil, fmt.Errorf("Service not upgraded: %s", s.State)
+			return nil, fmt.Errorf("Service not upgraded: %s\n", s.State)
 		}
 		return s, nil
 	}, time.Duration(vargs.Timeout)*time.Second, 3*time.Second)
-
 	if err != nil {
-		fmt.Printf("Error waiting for service upgrade to complete: %s", err)
 		return err
 	}
 
 	_, err = rancher.Service.ActionFinishupgrade(srv.(*client.Service))
 	if err != nil {
-		fmt.Printf("Unable to finish upgrade %s: %s\n", vargs.Service, err)
 		return err
 	}
 	fmt.Printf("Finished upgrade %s\n", vargs.Service)
@@ -214,4 +175,22 @@ func Error(w http.ResponseWriter, error string, code int) {
 	w.Header().Set("Content Type,", "text/plain; charset=UTF-8")
 	w.WriteHeader(code)
 	fmt.Fprint(w, error)
+}
+
+func slackMessage(status string, message string) {
+	var webhookUrl = os.Getenv("SLACK_WEBHOOK")
+	mkdwn := "text"
+	var array[] *string
+	array = append(array, &mkdwn )
+	attachment := slack.Attachment {Color: &status, Text: &message, Mkdwn: array}
+	payload := slack.Payload {
+		Username: "rancher-updater-service",
+		Attachments: []slack.Attachment{attachment},
+	}
+	printable, _ := json.Marshal(payload)
+	fmt.Println(string(printable))
+	err := slack.Send(webhookUrl, "", payload)
+	if len(err) > 0 {
+		fmt.Printf("error: %s\n", err)
+	}
 }
