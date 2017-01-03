@@ -104,7 +104,7 @@ func upgradeRancher(vargs Rancher) {
 									slackMessage("danger", message)
 								} else {
 									fmt.Printf("Upgraded %s to %s\n", svc.Name, vargs.Image)
-									message := fmt.Sprintf("`%[1]s` has been successfully upgraded to `%[2]s`"+
+									message := fmt.Sprintf("`%[1]s` has been successfully upgraded to `%[2]s` "+
 											       "in Dev\n View in Rancher here: <%[3]s|%[1]s>", vargs.Service, wantedVer, url)
 									slackMessage("good", message)
 
