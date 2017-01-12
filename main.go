@@ -78,6 +78,21 @@ func upgradeRancher(vargs Rancher) {
 		return
 	}
 
+	environments, err := rancher.Account.List(&client.ListOpts{})
+	if err != nil {
+		fmt.Printf("Failed to get environments: %s\n", err)
+	}
+	envs := make(map[string]string)
+	for environments != nil {
+		for _, env := range environments.Data {
+			envs[env.Id] = env.Name
+		}
+		environments, err = environments.Next()
+		if err != nil {
+			fmt.Printf("Failed: %s\n", err)
+		}
+	}
+
 	var upgradeLabel = os.Getenv("UPGRADE_LABEL")
 
 	var foundImage, foundVer string
@@ -88,30 +103,32 @@ func upgradeRancher(vargs Rancher) {
 					parts := strings.Split(svc.LaunchConfig.ImageUuid, ":")
 					foundImage = parts[1]
 					foundVer = parts[2]
-					if foundImage == wantedImage && ((foundVer < wantedVer) || (wantedVer == "latest")) {
-						fmt.Println("Trying to upgrade...")
-						err := doUpgrade(vargs, svc, rancher)
-						if err != nil {
-							fmt.Println(err.Error())
-						} else {
-							if (vargs.Confirm) {
-								fmt.Println("Trying to confirm...")
-								err := confirmUpgrade(vargs, svc, rancher)
-								url := fmt.Sprintf("https://rancher.connectedfleet.io/env/%s/apps/stacks/%s", svc.AccountId, svc.EnvironmentId)
-								if err != nil {
-									fmt.Println("Unable to upgrade service %s: %s\n", vargs.Service, err.Error())
-									message := fmt.Sprintf("Unable to confirm upgrade to `%s`.\nCheck status at <%[2]s|%[1]s>", vargs.Service, url)
-									slackMessage("danger", message)
-								} else {
-									fmt.Printf("Upgraded %s to %s\n", svc.Name, vargs.Image)
-									message := fmt.Sprintf("`%[1]s` has been successfully upgraded to `%[2]s` "+
-											       "in Dev\n View in Rancher here: <%[3]s|%[1]s>", vargs.Service, wantedVer, url)
-									slackMessage("good", message)
+					if strings.Contains(strings.ToLower(envs[svc.AccountId]), "dev") {
+						if foundImage == wantedImage && ((foundVer < wantedVer) || (wantedVer == "latest")) {
+							fmt.Println("Trying to upgrade...")
+							err := doUpgrade(vargs, svc, rancher)
+							if err != nil {
+								fmt.Println(err.Error())
+							} else {
+								if (vargs.Confirm) {
+									fmt.Println("Trying to confirm...")
+									err := confirmUpgrade(vargs, svc, rancher)
+									url := fmt.Sprintf("https://rancher.connectedfleet.io/env/%s/apps/stacks/%s", svc.AccountId, svc.EnvironmentId)
+									if err != nil {
+										fmt.Println("Unable to upgrade service %s: %s\n", vargs.Service, err.Error())
+										message := fmt.Sprintf("Unable to confirm upgrade to `%s`.\nCheck status at <%[2]s|%[1]s>", vargs.Service, url)
+										slackMessage("danger", message)
+									} else {
+										fmt.Printf("Upgraded %s to %s\n", svc.Name, vargs.Image)
+										message := fmt.Sprintf("`%[1]s` has been successfully upgraded to `%[2]s` " +
+											"in %[4]s\n View in Rancher here: <%[3]s|%[1]s>", vargs.Service, wantedVer, url, envs[svc.AccountId])
+										slackMessage("good", message)
 
+									}
 								}
 							}
+							continue
 						}
-						continue
 					}
 				}
 			}
