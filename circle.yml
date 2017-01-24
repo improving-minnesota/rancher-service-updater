@@ -11,6 +11,7 @@ general:
 checkout:
   pre:
     - rm -rf $GOPATH/src/$IMPORT_PATH
+    - mkdir -p $(dirname $GOPATH/src/$IMPORT_PATH)
     - ln -s $HOME/$CIRCLE_PROJECT_REPONAME $GOPATH/src/$IMPORT_PATH
     
 dependencies:
