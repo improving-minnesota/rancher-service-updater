@@ -19,6 +19,7 @@ dependencies:
     - mkdir -p $HOME/.go_project/src/$(dirname $IMPORT_PATH)
     - ln -s $HOME/$CIRCLE_PROJECT_REPONAME $HOME/.go_project/src/$IMPORT_PATH
     - go get -u github.com/kardianos/govendor
+    - echo "GOPATH: $GOPATH"
   override:
     - make build
   post:
