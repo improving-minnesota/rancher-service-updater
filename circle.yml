@@ -1,7 +1,7 @@
 machine:
   environment:
     GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project:${HOME}/${CIRCLE_PROJECT_REPONAME}"
-    # IMPORT_PATH: github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+    IMPORT_PATH: github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
   services:
     - docker
     
@@ -16,6 +16,7 @@ machine:
     
 dependencies:
   pre:
+    - ln -s $HOME/$CIRCLE_PROJECT_REPONAME $HOME/.go_project/src/$IMPORT_PATH
     - go get -u github.com/kardianos/govendor
   override:
     - make build
