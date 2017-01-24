@@ -1,14 +1,14 @@
 machine:
   environment:
-    GOPATH: /home/ubuntu/.go_workspace:/home/ubuntu/.go_project:/home/ubuntu/$CIRCLE_PROJECT_REPONAME
-    IMPORT_PATH: github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+    GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project:${HOME}/${CIRCLE_PROJECT_REPONAME}"
+    # IMPORT_PATH: github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
   services:
     - docker
     
-general:
+# general:
   # build_dir: ../.go_workspace/src/$IMPORT_PATH
 
-checkout:
+# checkout:
   # post:
   #   - mkdir -p $GOPATH
   #   - rm -rf $GOPATH/src/$IMPORT_PATH
