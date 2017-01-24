@@ -15,6 +15,10 @@ type PhysicalHost struct {
 
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 
+	Driver string `json:"driver,omitempty" yaml:"driver,omitempty"`
+
+	ExternalId string `json:"externalId,omitempty" yaml:"external_id,omitempty"`
+
 	Kind string `json:"kind,omitempty" yaml:"kind,omitempty"`
 
 	Name string `json:"name,omitempty" yaml:"name,omitempty"`
@@ -36,7 +40,8 @@ type PhysicalHost struct {
 
 type PhysicalHostCollection struct {
 	Collection
-	Data []PhysicalHost `json:"data,omitempty"`
+	Data   []PhysicalHost `json:"data,omitempty"`
+	client *PhysicalHostClient
 }
 
 type PhysicalHostClient struct {
@@ -82,7 +87,18 @@ func (c *PhysicalHostClient) Update(existing *PhysicalHost, updates interface{})
 func (c *PhysicalHostClient) List(opts *ListOpts) (*PhysicalHostCollection, error) {
 	resp := &PhysicalHostCollection{}
 	err := c.rancherClient.doList(PHYSICAL_HOST_TYPE, opts, resp)
+	resp.client = c
 	return resp, err
+}
+
+func (cc *PhysicalHostCollection) Next() (*PhysicalHostCollection, error) {
+	if cc != nil && cc.Pagination != nil && cc.Pagination.Next != "" {
+		resp := &PhysicalHostCollection{}
+		err := cc.client.rancherClient.doNext(cc.Pagination.Next, resp)
+		resp.client = cc.client
+		return resp, err
+	}
+	return nil, nil
 }
 
 func (c *PhysicalHostClient) ById(id string) (*PhysicalHost, error) {

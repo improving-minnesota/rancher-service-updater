@@ -9,9 +9,13 @@ type Service struct {
 
 	AccountId string `json:"accountId,omitempty" yaml:"account_id,omitempty"`
 
+	AssignServiceIpAddress bool `json:"assignServiceIpAddress,omitempty" yaml:"assign_service_ip_address,omitempty"`
+
 	CreateIndex int64 `json:"createIndex,omitempty" yaml:"create_index,omitempty"`
 
 	Created string `json:"created,omitempty" yaml:"created,omitempty"`
+
+	CurrentScale int64 `json:"currentScale,omitempty" yaml:"current_scale,omitempty"`
 
 	Data map[string]interface{} `json:"data,omitempty" yaml:"data,omitempty"`
 
@@ -22,6 +26,8 @@ type Service struct {
 	ExternalId string `json:"externalId,omitempty" yaml:"external_id,omitempty"`
 
 	Fqdn string `json:"fqdn,omitempty" yaml:"fqdn,omitempty"`
+
+	HealthState string `json:"healthState,omitempty" yaml:"health_state,omitempty"`
 
 	Kind string `json:"kind,omitempty" yaml:"kind,omitempty"`
 
@@ -37,7 +43,11 @@ type Service struct {
 
 	Removed string `json:"removed,omitempty" yaml:"removed,omitempty"`
 
+	RetainIp bool `json:"retainIp,omitempty" yaml:"retain_ip,omitempty"`
+
 	Scale int64 `json:"scale,omitempty" yaml:"scale,omitempty"`
+
+	ScalePolicy *ScalePolicy `json:"scalePolicy,omitempty" yaml:"scale_policy,omitempty"`
 
 	SecondaryLaunchConfigs []interface{} `json:"secondaryLaunchConfigs,omitempty" yaml:"secondary_launch_configs,omitempty"`
 
@@ -45,7 +55,7 @@ type Service struct {
 
 	SelectorLink string `json:"selectorLink,omitempty" yaml:"selector_link,omitempty"`
 
-	ServiceSchemas map[string]interface{} `json:"serviceSchemas,omitempty" yaml:"service_schemas,omitempty"`
+	StartOnCreate bool `json:"startOnCreate,omitempty" yaml:"start_on_create,omitempty"`
 
 	State string `json:"state,omitempty" yaml:"state,omitempty"`
 
@@ -55,7 +65,7 @@ type Service struct {
 
 	TransitioningProgress int64 `json:"transitioningProgress,omitempty" yaml:"transitioning_progress,omitempty"`
 
-	Upgrade ServiceUpgrade `json:"upgrade,omitempty" yaml:"upgrade,omitempty"`
+	Upgrade *ServiceUpgrade `json:"upgrade,omitempty" yaml:"upgrade,omitempty"`
 
 	Uuid string `json:"uuid,omitempty" yaml:"uuid,omitempty"`
 
@@ -64,7 +74,8 @@ type Service struct {
 
 type ServiceCollection struct {
 	Collection
-	Data []Service `json:"data,omitempty"`
+	Data   []Service `json:"data,omitempty"`
+	client *ServiceClient
 }
 
 type ServiceClient struct {
@@ -128,7 +139,18 @@ func (c *ServiceClient) Update(existing *Service, updates interface{}) (*Service
 func (c *ServiceClient) List(opts *ListOpts) (*ServiceCollection, error) {
 	resp := &ServiceCollection{}
 	err := c.rancherClient.doList(SERVICE_TYPE, opts, resp)
+	resp.client = c
 	return resp, err
+}
+
+func (cc *ServiceCollection) Next() (*ServiceCollection, error) {
+	if cc != nil && cc.Pagination != nil && cc.Pagination.Next != "" {
+		resp := &ServiceCollection{}
+		err := cc.client.rancherClient.doNext(cc.Pagination.Next, resp)
+		resp.client = cc.client
+		return resp, err
+	}
+	return nil, nil
 }
 
 func (c *ServiceClient) ById(id string) (*Service, error) {

@@ -27,10 +27,10 @@
 			"revisionTime": "2017-01-09T08:21:02Z"
 		},
 		{
-			"checksumSHA1": "kJk7J/hnV7f58DL8/wVIYawVg/Y=",
+			"checksumSHA1": "1fR2Rjb3WgPYi9GOB3HrMAFtCPs=",
 			"path": "github.com/rancher/go-rancher/client",
-			"revision": "42edbb235a13e8739fe1354f01fb035172f0ed5f",
-			"revisionTime": "2016-01-16T05:45:59Z"
+			"revision": "2c43ff300f3eafcbd7d0b89b10427fc630efdc1e",
+			"revisionTime": "2016-12-20T06:33:30Z"
 		},
 		{
 			"checksumSHA1": "CjDmpbYWUeTzpJBeH5AmfH/my88=",

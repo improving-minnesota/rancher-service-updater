@@ -43,8 +43,6 @@ type Machine struct {
 
 	EngineStorageDriver string `json:"engineStorageDriver,omitempty" yaml:"engine_storage_driver,omitempty"`
 
-	ExoscaleConfig *ExoscaleConfig `json:"exoscaleConfig,omitempty" yaml:"exoscale_config,omitempty"`
-
 	ExternalId string `json:"externalId,omitempty" yaml:"external_id,omitempty"`
 
 	ExtractedConfig string `json:"extractedConfig,omitempty" yaml:"extracted_config,omitempty"`
@@ -55,17 +53,11 @@ type Machine struct {
 
 	Name string `json:"name,omitempty" yaml:"name,omitempty"`
 
-	OpenstackConfig *OpenstackConfig `json:"openstackConfig,omitempty" yaml:"openstack_config,omitempty"`
-
 	PacketConfig *PacketConfig `json:"packetConfig,omitempty" yaml:"packet_config,omitempty"`
-
-	RackspaceConfig *RackspaceConfig `json:"rackspaceConfig,omitempty" yaml:"rackspace_config,omitempty"`
 
 	RemoveTime string `json:"removeTime,omitempty" yaml:"remove_time,omitempty"`
 
 	Removed string `json:"removed,omitempty" yaml:"removed,omitempty"`
-
-	SoftlayerConfig *SoftlayerConfig `json:"softlayerConfig,omitempty" yaml:"softlayer_config,omitempty"`
 
 	State string `json:"state,omitempty" yaml:"state,omitempty"`
 
@@ -75,20 +67,13 @@ type Machine struct {
 
 	TransitioningProgress int64 `json:"transitioningProgress,omitempty" yaml:"transitioning_progress,omitempty"`
 
-	UbiquityConfig *UbiquityConfig `json:"ubiquityConfig,omitempty" yaml:"ubiquity_config,omitempty"`
-
 	Uuid string `json:"uuid,omitempty" yaml:"uuid,omitempty"`
-
-	VirtualboxConfig *VirtualboxConfig `json:"virtualboxConfig,omitempty" yaml:"virtualbox_config,omitempty"`
-
-	VmwarevcloudairConfig *VmwarevcloudairConfig `json:"vmwarevcloudairConfig,omitempty" yaml:"vmwarevcloudair_config,omitempty"`
-
-	VmwarevsphereConfig *VmwarevsphereConfig `json:"vmwarevsphereConfig,omitempty" yaml:"vmwarevsphere_config,omitempty"`
 }
 
 type MachineCollection struct {
 	Collection
-	Data []Machine `json:"data,omitempty"`
+	Data   []Machine `json:"data,omitempty"`
+	client *MachineClient
 }
 
 type MachineClient struct {
@@ -134,7 +119,18 @@ func (c *MachineClient) Update(existing *Machine, updates interface{}) (*Machine
 func (c *MachineClient) List(opts *ListOpts) (*MachineCollection, error) {
 	resp := &MachineCollection{}
 	err := c.rancherClient.doList(MACHINE_TYPE, opts, resp)
+	resp.client = c
 	return resp, err
+}
+
+func (cc *MachineCollection) Next() (*MachineCollection, error) {
+	if cc != nil && cc.Pagination != nil && cc.Pagination.Next != "" {
+		resp := &MachineCollection{}
+		err := cc.client.rancherClient.doNext(cc.Pagination.Next, resp)
+		resp.client = cc.client
+		return resp, err
+	}
+	return nil, nil
 }
 
 func (c *MachineClient) ById(id string) (*Machine, error) {
