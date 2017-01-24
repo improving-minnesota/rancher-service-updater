@@ -1,0 +1,43 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "TwgzWIgoTn5gmNY6A7vS/CsHMLE=",
+			"path": "github.com/ahaynssen/slack-go-webhook",
+			"revision": "e7d8b412a99d72a8d68e2ba793ab35c838c3aa7c",
+			"revisionTime": "2017-01-03T14:49:25Z"
+		},
+		{
+			"checksumSHA1": "SmBqqqR0T+1Ksx5zwCl295Vey0s=",
+			"path": "github.com/gorilla/websocket",
+			"revision": "9fbf129ff2a3cf2467f7d0021de2eb4d3aecc109",
+			"revisionTime": "2016-11-02T20:04:59Z"
+		},
+		{
+			"checksumSHA1": "CxNwJP++vjUAyy3bbJnNss1Il9Q=",
+			"path": "github.com/moul/http2curl",
+			"revision": "4e24498b31dba4683efb9d35c1c8a91e2eda28c8",
+			"revisionTime": "2016-10-31T19:45:48Z"
+		},
+		{
+			"checksumSHA1": "wLY4niYS+lFuVHGVVqMjd3lEQBw=",
+			"path": "github.com/parnurzeal/gorequest",
+			"revision": "f441e24175ffc865a6354b65375e537201c51382",
+			"revisionTime": "2017-01-09T08:21:02Z"
+		},
+		{
+			"checksumSHA1": "kJk7J/hnV7f58DL8/wVIYawVg/Y=",
+			"path": "github.com/rancher/go-rancher/client",
+			"revision": "42edbb235a13e8739fe1354f01fb035172f0ed5f",
+			"revisionTime": "2016-01-16T05:45:59Z"
+		},
+		{
+			"checksumSHA1": "CjDmpbYWUeTzpJBeH5AmfH/my88=",
+			"path": "golang.org/x/net/publicsuffix",
+			"revision": "6acef71eb69611914f7a30939ea9f6e194c78172",
+			"revisionTime": "2016-02-25T17:50:37Z"
+		}
+	],
+	"rootPath": "github.com/objectpartners/rancher-service-updater"
+}
