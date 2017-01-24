@@ -22,7 +22,7 @@ dependencies:
   post:
     - cp $CIRCLE_PROJECT_REPONAME $CIRCLE_ARTIFACTS
     - docker info
-    - docker pull objectpartners/r$CIRCLE_PROJECT_REPONAME:latest
+    - docker pull objectpartners/$CIRCLE_PROJECT_REPONAME:latest || true
     - scripts/build.sh objectpartners/$CIRCLE_PROJECT_REPONAME
 test:
   override:
