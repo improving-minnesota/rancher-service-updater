@@ -5,9 +5,6 @@ machine:
   services:
     - docker
     
-general:
-  build_dir: ../.go_workspace/src/$IMPORT_PATH
-    
 dependencies:
   pre:
     - go get -u github.com/kardianos/govendor
