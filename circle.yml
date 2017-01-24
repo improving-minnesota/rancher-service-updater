@@ -1,31 +1,27 @@
 machine:
   environment:
-    GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project:${HOME}/${CIRCLE_PROJECT_REPONAME}"
+    GOPATH: /home/ubuntu/.go_workspace
     IMPORT_PATH: github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
   services:
     - docker
     
-# general:
-  # build_dir: ../.go_workspace/src/$IMPORT_PATH
+general:
+  build_dir: ../.go_workspace/src/$IMPORT_PATH
 
-# checkout:
-  # post:
-  #   - mkdir -p $GOPATH
-  #   - rm -rf $GOPATH/src/$IMPORT_PATH
-  #   - ln -s $HOME/$CIRCLE_PROJECT_REPONAME $GOPATH/src/$IMPORT_PATH
+checkout:
+  pre:
+    - rm -rf $GOPATH/src/$IMPORT_PATH
+    - ln -s $HOME/$CIRCLE_PROJECT_REPONAME $GOPATH/src/$IMPORT_PATH
     
 dependencies:
   pre:
-    - mkdir -p $HOME/.go_project/src/$(dirname $IMPORT_PATH)
-    - ln -s $HOME/$CIRCLE_PROJECT_REPONAME $HOME/.go_project/src/$IMPORT_PATH
     - go get -u github.com/kardianos/govendor
-    - echo $GOPATH
   override:
     - make build
   post:
     - cp $CIRCLE_PROJECT_REPONAME $CIRCLE_ARTIFACTS
     - docker info
-    - docker pull objectpartners/$CIRCLE_PROJECT_REPONAME:latest
+    - docker pull objectpartners/r$CIRCLE_PROJECT_REPONAME:latest
     - scripts/build.sh objectpartners/$CIRCLE_PROJECT_REPONAME
 test:
   override:
