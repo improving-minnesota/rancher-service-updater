@@ -27,6 +27,12 @@
 			"revisionTime": "2017-01-09T08:21:02Z"
 		},
 		{
+			"checksumSHA1": "+2DVf7kgpA3WMbfjk9pm2/jLsAI=",
+			"path": "github.com/pkg/errors",
+			"revision": "42fa80f2ac6ed17a977ce826074bd3009593fa9d",
+			"revisionTime": "2016-05-02T19:39:29Z"
+		},
+		{
 			"checksumSHA1": "1fR2Rjb3WgPYi9GOB3HrMAFtCPs=",
 			"path": "github.com/rancher/go-rancher/client",
 			"revision": "2c43ff300f3eafcbd7d0b89b10427fc630efdc1e",
