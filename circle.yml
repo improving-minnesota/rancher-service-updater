@@ -7,11 +7,6 @@ machine:
     
 general:
   build_dir: ../.go_workspace/src/$IMPORT_PATH
-
-checkout:
-  post:
-    - rm -rf $GOPATH/src/$IMPORT_PATH
-    - ln -s $HOME/$CIRCLE_PROJECT_REPONAME $GOPATH/src/$IMPORT_PATH
     
 dependencies:
   pre:
