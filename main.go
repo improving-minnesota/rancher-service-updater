@@ -1,14 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
 	"strings"
 	"time"
-	"net/http"
-	"encoding/json"
-	"github.com/rancher/go-rancher/client"
-	"os"
+
 	"github.com/ahaynssen/slack-go-webhook"
+	"github.com/rancher/go-rancher/client"
 )
 
 type Rancher struct {
@@ -28,7 +29,7 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
-func requestSuccess(w http.ResponseWriter, r *http.Request){
+func requestSuccess(w http.ResponseWriter, r *http.Request) {
 	vargs := Rancher{
 		StartFirst: false,
 		Timeout:    30,
@@ -110,17 +111,17 @@ func upgradeRancher(vargs Rancher) {
 							if err != nil {
 								fmt.Println(err.Error())
 							} else {
-								if (vargs.Confirm) {
+								if vargs.Confirm {
 									fmt.Println("Trying to confirm...")
 									err := confirmUpgrade(vargs, svc, rancher)
-									url := fmt.Sprintf("https://rancher.connectedfleet.io/env/%s/apps/stacks/%s", svc.AccountId, svc.EnvironmentId)
+									url := fmt.Sprintf("%s/env/%s/apps/stacks/%s", vargs.Url, svc.AccountId, svc.EnvironmentId)
 									if err != nil {
-										fmt.Println("Unable to upgrade service %s: %s\n", vargs.Service, err.Error())
+										fmt.Printf("Unable to upgrade service %s: %s\n", vargs.Service, err.Error())
 										message := fmt.Sprintf("Unable to confirm upgrade to `%s`.\nCheck status at <%[2]s|%[1]s>", vargs.Service, url)
 										slackMessage("danger", message)
 									} else {
 										fmt.Printf("Upgraded %s to %s\n", svc.Name, vargs.Image)
-										message := fmt.Sprintf("`%[1]s` has been successfully upgraded to `%[2]s` " +
+										message := fmt.Sprintf("`%[1]s` has been successfully upgraded to `%[2]s` "+
 											"in %[4]s\n View in Rancher here: <%[3]s|%[1]s>", vargs.Service, wantedVer, url, envs[svc.AccountId])
 										slackMessage("good", message)
 
@@ -137,7 +138,7 @@ func upgradeRancher(vargs Rancher) {
 	}
 }
 
-func doUpgrade(vargs Rancher, service client.Service, rancher *client.RancherClient) (error) {
+func doUpgrade(vargs Rancher, service client.Service, rancher *client.RancherClient) error {
 	service.LaunchConfig.ImageUuid = vargs.Image
 	upgrade := &client.ServiceUpgrade{}
 	upgrade.InServiceStrategy = &client.InServiceUpgradeStrategy{
@@ -150,7 +151,7 @@ func doUpgrade(vargs Rancher, service client.Service, rancher *client.RancherCli
 	return err
 }
 
-func confirmUpgrade(vargs Rancher, service client.Service, rancher *client.RancherClient) (error) {
+func confirmUpgrade(vargs Rancher, service client.Service, rancher *client.RancherClient) error {
 	srv, err := retry(func() (interface{}, error) {
 		s, e := rancher.Service.ById(service.Id)
 		if e != nil {
@@ -199,11 +200,11 @@ func Error(w http.ResponseWriter, error string, code int) {
 func slackMessage(status string, message string) {
 	var webhookUrl = os.Getenv("SLACK_WEBHOOK")
 
-	attachment := slack.Attachment {Color: &status, Text: &message}
+	attachment := slack.Attachment{Color: &status, Text: &message}
 	mrkdwn := "text"
 	attachment.AddMrkdwn(&mrkdwn)
-	payload := slack.Payload {
-		Username: "rancher-updater-service",
+	payload := slack.Payload{
+		Username:    "rancher-updater-service",
 		Attachments: []slack.Attachment{attachment},
 	}
 	printable, _ := json.Marshal(payload)
