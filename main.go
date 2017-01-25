@@ -6,76 +6,52 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ahaynssen/slack-go-webhook"
+	"github.com/objectpartners/rancher-service-updater/utils"
 	"github.com/rancher/go-rancher/client"
 )
 
-//Config service configuration
-type Config struct {
-	EnableLabel      string
-	EnvironmentNames []string
-	Port             int
-	CattleSecretKey  string
-	CattleAccessKey  string
-	CattleURL        string
-	SlackWebhookURL  string
-	SlackBotName     string
-}
-
-//ServiceUpdater the service
-type ServiceUpdater struct {
-	Config *Config
-	client *client.RancherClient
-}
-
-//UpdateCommand payload for new image availability
-type UpdateCommand struct {
-	Image      string `json:"docker_image"`
-	StartFirst bool   `json:"start_first"`
-	Confirm    bool   `json:"confirm"`
-	Timeout    int    `json:"timeout"`
-}
-
-func getEnvOrDefault(key, defaultValue string) string {
-	if os.Getenv(key) != "" {
-		return os.Getenv(key)
+type (
+	//Config service configuration
+	Config struct {
+		EnableLabel      string
+		EnvironmentNames []string
+		Port             int
+		CattleSecretKey  string
+		CattleAccessKey  string
+		CattleURL        string
+		SlackWebhookURL  string
+		SlackBotName     string
 	}
-	return defaultValue
-}
 
-func getEnvOrDefaultArray(key string, defaultValues []string) []string {
-	if os.Getenv(key) != "" {
-		return strings.Split(os.Getenv(key), ",")
+	//ServiceUpdater the service
+	ServiceUpdater struct {
+		Config *Config
+		client *client.RancherClient
 	}
-	return defaultValues
-}
 
-func getEnvOrDefaultInt(key string, defaultValue int) int {
-	if os.Getenv(key) != "" {
-		vals, err := strconv.Atoi(os.Getenv(key))
-		if err != nil {
-			log.Fatalf("Unable to parse %s [%s] as integer\n", key, os.Getenv(key))
-		}
-		return vals
+	//UpdateCommand payload for new image availability
+	UpdateCommand struct {
+		Image      string `json:"docker_image"`
+		StartFirst bool   `json:"start_first"`
+		Confirm    bool   `json:"confirm"`
+		Timeout    int    `json:"timeout"`
 	}
-	return defaultValue
-}
+)
 
 func main() {
 	config := &Config{
-		EnableLabel:      getEnvOrDefault("AUTOUPDATE_ENABLE_LABEL", "autoupdate.enable"),
-		EnvironmentNames: getEnvOrDefaultArray("AUTOUPDATE_ENVIRONMENT_NAMES", []string{".*"}),
-		Port:             getEnvOrDefaultInt("AUTOUPDATE_HTTP_PORT", 8080),
+		EnableLabel:      utils.GetEnvOrDefault("AUTOUPDATE_ENABLE_LABEL", "autoupdate.enable"),
+		EnvironmentNames: utils.GetEnvOrDefaultArray("AUTOUPDATE_ENVIRONMENT_NAMES", []string{".*"}),
+		Port:             utils.GetEnvOrDefaultInt("AUTOUPDATE_HTTP_PORT", 8080),
 		CattleAccessKey:  os.Getenv("CATTLE_ACCESS_KEY"),
 		CattleSecretKey:  os.Getenv("CATTLE_SECRET_KEY"),
 		CattleURL:        os.Getenv("CATTLE_URL"),
 		SlackWebhookURL:  os.Getenv("AUTOUPDATE_SLACK_WEBHOOK_URL"),
-		SlackBotName:     getEnvOrDefault("AUTOUPDATE_SLACK_BOT_NAME", "rancher-service-updater"),
+		SlackBotName:     utils.GetEnvOrDefault("AUTOUPDATE_SLACK_BOT_NAME", "rancher-service-updater"),
 	}
 	serviceUpdater := &ServiceUpdater{
 		Config: config,
@@ -121,7 +97,7 @@ func (s *ServiceUpdater) upgrade(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&command)
 	if err != nil {
 		log.Printf("%s\n", err.Error())
-		sendError(w, err.Error(), 400)
+		utils.SendError(w, err.Error(), 400)
 		return
 	}
 	go s.upgradeService(command)
@@ -169,7 +145,7 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 					parts := strings.Split(svc.LaunchConfig.ImageUuid, ":")
 					foundImage := parts[1]
 					foundVer := parts[2]
-					if environmentEnabled(envs[svc.AccountId], s.Config.EnvironmentNames) {
+					if utils.EnvironmentEnabled(envs[svc.AccountId], s.Config.EnvironmentNames) {
 						if foundImage == wantedImage && ((foundVer < wantedVer) || (wantedVer == "latest")) {
 							fmt.Println("Trying to upgrade...")
 							err := s.doUpgrade(command, svc)
@@ -203,18 +179,6 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 	}
 }
 
-func environmentEnabled(name string, enabled []string) bool {
-	for _, p := range enabled {
-		pattern, err := regexp.Compile(p)
-		if err == nil {
-			if pattern.MatchString(name) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func (s *ServiceUpdater) doUpgrade(command UpdateCommand, service client.Service) error {
 	service.LaunchConfig.ImageUuid = command.Image
 	upgrade := &client.ServiceUpgrade{}
@@ -229,7 +193,7 @@ func (s *ServiceUpdater) doUpgrade(command UpdateCommand, service client.Service
 }
 
 func (s *ServiceUpdater) confirmUpgrade(command UpdateCommand, service client.Service) error {
-	srv, err := retry(func() (interface{}, error) {
+	srv, err := utils.Retry(func() (interface{}, error) {
 		s, e := s.client.Service.ById(service.Id)
 		if e != nil {
 			return nil, e
@@ -249,29 +213,6 @@ func (s *ServiceUpdater) confirmUpgrade(command UpdateCommand, service client.Se
 	}
 	fmt.Printf("Finished upgrade on %s\n", srv.(*client.Service).Name)
 	return err
-}
-
-type retryFunc func() (interface{}, error)
-
-func retry(f retryFunc, timeout time.Duration, interval time.Duration) (interface{}, error) {
-	finish := time.After(timeout)
-	for {
-		result, err := f()
-		if err == nil {
-			return result, nil
-		}
-		select {
-		case <-finish:
-			return nil, err
-		case <-time.After(interval):
-		}
-	}
-}
-
-func sendError(w http.ResponseWriter, error string, code int) {
-	w.Header().Set("Content Type,", "text/plain; charset=UTF-8")
-	w.WriteHeader(code)
-	fmt.Fprint(w, error)
 }
 
 func (s *ServiceUpdater) slackMessage(status string, message string) {
