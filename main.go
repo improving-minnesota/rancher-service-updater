@@ -15,22 +15,25 @@ import (
 	"github.com/rancher/go-rancher/client"
 )
 
+//Config service configuration
 type Config struct {
 	EnableLabel      string
 	EnvironmentNames []string
 	Port             int
 	CattleSecretKey  string
 	CattleAccessKey  string
-	CattleUrl        string
-	SlackWebhookUrl  string
+	CattleURL        string
+	SlackWebhookURL  string
 	SlackBotName     string
 }
 
+//ServiceUpdater the service
 type ServiceUpdater struct {
 	Config *Config
 	client *client.RancherClient
 }
 
+//UpdateCommand payload for new image availability
 type UpdateCommand struct {
 	Image      string `json:"docker_image"`
 	StartFirst bool   `json:"start_first"`
@@ -40,31 +43,18 @@ type UpdateCommand struct {
 	serviceName string
 }
 
-type Rancher struct {
-	Url        string `json:"url"`
-	AccessKey  string `json:"access_key"`
-	SecretKey  string `json:"secret_key"`
-	Service    string `json:"service"`
-	Image      string `json:"docker_image"`
-	StartFirst bool   `json:"start_first"`
-	Confirm    bool   `json:"confirm"`
-	Timeout    int    `json:"timeout"`
-}
-
 func getEnvOrDefault(key, defaultValue string) string {
 	if os.Getenv(key) != "" {
 		return os.Getenv(key)
-	} else {
-		return defaultValue
 	}
+	return defaultValue
 }
 
 func getEnvOrDefaultArray(key string, defaultValues []string) []string {
 	if os.Getenv(key) != "" {
 		return strings.Split(os.Getenv(key), ",")
-	} else {
-		return defaultValues
 	}
+	return defaultValues
 }
 
 func getEnvOrDefaultInt(key string, defaultValue int) int {
@@ -74,9 +64,8 @@ func getEnvOrDefaultInt(key string, defaultValue int) int {
 			log.Fatalf("Unable to parse %s [%s] as integer\n", key, os.Getenv(key))
 		}
 		return vals
-	} else {
-		return defaultValue
 	}
+	return defaultValue
 }
 
 func main() {
@@ -86,8 +75,8 @@ func main() {
 		Port:             getEnvOrDefaultInt("AUTOUPDATE_HTTP_PORT", 8080),
 		CattleAccessKey:  os.Getenv("CATTLE_ACCESS_KEY"),
 		CattleSecretKey:  os.Getenv("CATTLE_SECRET_KEY"),
-		CattleUrl:        os.Getenv("CATTLE_URL"),
-		SlackWebhookUrl:  os.Getenv("AUTOUPDATE_SLACK_WEBHOOK_URL"),
+		CattleURL:        os.Getenv("CATTLE_URL"),
+		SlackWebhookURL:  os.Getenv("AUTOUPDATE_SLACK_WEBHOOK_URL"),
 		SlackBotName:     getEnvOrDefault("AUTOUPDATE_SLACK_BOT_NAME", "rancher-service-updater"),
 	}
 	serviceUpdater := &ServiceUpdater{
@@ -101,7 +90,7 @@ func (s *ServiceUpdater) init() {
 	c, err := client.NewRancherClient(&client.ClientOpts{
 		AccessKey: s.Config.CattleAccessKey,
 		SecretKey: s.Config.CattleSecretKey,
-		Url:       s.Config.CattleUrl,
+		Url:       s.Config.CattleURL,
 	})
 	if err != nil {
 		log.Fatalf("Unable to create Rancher client: %s\n", err)
@@ -134,7 +123,7 @@ func (s *ServiceUpdater) upgrade(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&command)
 	if err != nil {
 		log.Printf("%s\n", err.Error())
-		Error(w, err.Error(), 400)
+		sendError(w, err.Error(), 400)
 		return
 	}
 	go s.upgradeService(command)
@@ -176,13 +165,13 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 		}
 	}
 
-	var enabledLable = s.Config.EnableLabel
+	var enabledLabel = s.Config.EnableLabel
 
 	var foundImage, foundVer string
 	for services != nil {
 		for _, svc := range services.Data {
 			if svc.LaunchConfig != nil {
-				if _, ok := svc.LaunchConfig.Labels[enabledLable]; ok {
+				if _, ok := svc.LaunchConfig.Labels[enabledLabel]; ok {
 					parts := strings.Split(svc.LaunchConfig.ImageUuid, ":")
 					foundImage = parts[1]
 					foundVer = parts[2]
@@ -196,7 +185,7 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 								if command.Confirm {
 									fmt.Println("Trying to confirm...")
 									err := s.confirmUpgrade(command, svc)
-									url := fmt.Sprintf("%s/env/%s/apps/stacks/%s", s.Config.CattleUrl, svc.AccountId, svc.EnvironmentId)
+									url := fmt.Sprintf("%s/env/%s/apps/stacks/%s", s.Config.CattleURL, svc.AccountId, svc.EnvironmentId)
 									if err != nil {
 										fmt.Printf("Unable to upgrade service %s: %s\n", command.serviceName, err.Error())
 										message := fmt.Sprintf("Unable to confirm upgrade to `%s`.\nCheck status at <%[2]s|%[1]s>", command.serviceName, url)
@@ -216,7 +205,7 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 				}
 			}
 		}
-		services, err = services.Next()
+		services, _ = services.Next()
 	}
 }
 
@@ -285,14 +274,14 @@ func retry(f retryFunc, timeout time.Duration, interval time.Duration) (interfac
 	}
 }
 
-func Error(w http.ResponseWriter, error string, code int) {
+func sendError(w http.ResponseWriter, error string, code int) {
 	w.Header().Set("Content Type,", "text/plain; charset=UTF-8")
 	w.WriteHeader(code)
 	fmt.Fprint(w, error)
 }
 
 func (s *ServiceUpdater) slackMessage(status string, message string) {
-	if s.Config.SlackWebhookUrl != "" {
+	if s.Config.SlackWebhookURL != "" {
 		attachment := slack.Attachment{Color: &status, Text: &message}
 		mrkdwn := "text"
 		attachment.AddMrkdwn(&mrkdwn)
@@ -302,7 +291,7 @@ func (s *ServiceUpdater) slackMessage(status string, message string) {
 		}
 		printable, _ := json.Marshal(payload)
 		fmt.Println(string(printable))
-		err := slack.Send(s.Config.SlackWebhookUrl, "", payload)
+		err := slack.Send(s.Config.SlackWebhookURL, "", payload)
 		if len(err) > 0 {
 			fmt.Printf("error sending Slack message: %s\n", err)
 		}
