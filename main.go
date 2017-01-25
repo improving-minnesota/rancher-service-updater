@@ -39,8 +39,6 @@ type UpdateCommand struct {
 	StartFirst bool   `json:"start_first"`
 	Confirm    bool   `json:"confirm"`
 	Timeout    int    `json:"timeout"`
-
-	serviceName string
 }
 
 func getEnvOrDefault(key, defaultValue string) string {
@@ -135,12 +133,10 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 	var wantedImage, wantedVer string
 	if !strings.HasPrefix(command.Image, "docker:") {
 		command.Image = fmt.Sprintf("docker:%s", command.Image)
-		parts := strings.Split(command.Image, ":")
-		wantedImage = parts[1]
-		wantedVer = parts[2]
 	}
-	parts := strings.Split(wantedImage, "/")
-	command.serviceName = parts[1]
+	parts := strings.Split(command.Image, ":")
+	wantedImage = parts[1]
+	wantedVer = parts[2]
 
 	services, err := s.client.Service.List(&client.ListOpts{})
 	if err != nil {
@@ -166,15 +162,13 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 	}
 
 	var enabledLabel = s.Config.EnableLabel
-
-	var foundImage, foundVer string
 	for services != nil {
 		for _, svc := range services.Data {
 			if svc.LaunchConfig != nil {
 				if _, ok := svc.LaunchConfig.Labels[enabledLabel]; ok {
 					parts := strings.Split(svc.LaunchConfig.ImageUuid, ":")
-					foundImage = parts[1]
-					foundVer = parts[2]
+					foundImage := parts[1]
+					foundVer := parts[2]
 					if environmentEnabled(envs[svc.AccountId], s.Config.EnvironmentNames) {
 						if foundImage == wantedImage && ((foundVer < wantedVer) || (wantedVer == "latest")) {
 							fmt.Println("Trying to upgrade...")
@@ -187,13 +181,13 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 									err := s.confirmUpgrade(command, svc)
 									url := fmt.Sprintf("%s/env/%s/apps/stacks/%s", s.Config.CattleURL, svc.AccountId, svc.EnvironmentId)
 									if err != nil {
-										fmt.Printf("Unable to upgrade service %s: %s\n", command.serviceName, err.Error())
-										message := fmt.Sprintf("Unable to confirm upgrade to `%s`.\nCheck status at <%[2]s|%[1]s>", command.serviceName, url)
+										fmt.Printf("Unable to upgrade service %s: %s\n", svc.Name, err.Error())
+										message := fmt.Sprintf("Unable to confirm upgrade to `%s`.\nCheck status at <%[2]s|%[1]s>", svc.Name, url)
 										s.slackMessage("danger", message)
 									} else {
 										fmt.Printf("Upgraded %s to %s\n", svc.Name, command.Image)
 										message := fmt.Sprintf("`%[1]s` has been successfully upgraded to `%[2]s` "+
-											"in %[4]s\n View in Rancher here: <%[3]s|%[1]s>", command.serviceName, wantedVer, url, envs[svc.AccountId])
+											"in %[4]s\n View in Rancher here: <%[3]s|%[1]s>", svc.Name, wantedVer, url, envs[svc.AccountId])
 										s.slackMessage("good", message)
 
 									}
@@ -249,11 +243,11 @@ func (s *ServiceUpdater) confirmUpgrade(command UpdateCommand, service client.Se
 		return err
 	}
 
-	_, err = s.client.Service.ActionFinishupgrade(srv.(*client.Service))
+	srv, err = s.client.Service.ActionFinishupgrade(srv.(*client.Service))
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Finished upgrade %s\n", command.serviceName)
+	fmt.Printf("Finished upgrade on %s\n", srv.(*client.Service).Name)
 	return err
 }
 
