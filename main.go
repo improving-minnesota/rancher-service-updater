@@ -15,7 +15,7 @@ import (
 )
 
 type (
-	//Config service configuration
+	//Config is the service configuration
 	Config struct {
 		EnableLabel      string
 		EnvironmentNames []string
@@ -27,18 +27,33 @@ type (
 		SlackBotName     string
 	}
 
-	//ServiceUpdater the service
+	//ServiceUpdater is the service
 	ServiceUpdater struct {
 		Config *Config
-		client *client.RancherClient
+		// client  *client.RancherClient
+		service Service
+		account Account
 	}
 
-	//UpdateCommand payload for new image availability
+	//UpdateCommand is payload for new image availability
 	UpdateCommand struct {
 		Image      string `json:"docker_image"`
 		StartFirst bool   `json:"start_first"`
 		Confirm    bool   `json:"confirm"`
 		Timeout    int    `json:"timeout"`
+	}
+
+	//Service is Rancher Service interface
+	Service interface {
+		ById(id string) (*client.Service, error)
+		List(opts *client.ListOpts) (*client.ServiceCollection, error)
+		ActionFinishupgrade(*client.Service) (*client.Service, error)
+		ActionUpgrade(*client.Service, *client.ServiceUpgrade) (*client.Service, error)
+	}
+
+	//Account is Rancher Environment interface
+	Account interface {
+		List(opts *client.ListOpts) (*client.AccountCollection, error)
 	}
 )
 
@@ -69,7 +84,8 @@ func (s *ServiceUpdater) init() {
 	if err != nil {
 		log.Fatalf("Unable to create Rancher client: %s\n", err)
 	}
-	s.client = c
+	s.service = c.Service
+	s.account = c.Account
 }
 
 func (s *ServiceUpdater) listen() {
@@ -114,13 +130,13 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 	wantedImage = parts[1]
 	wantedVer = parts[2]
 
-	services, err := s.client.Service.List(&client.ListOpts{})
+	services, err := s.service.List(&client.ListOpts{})
 	if err != nil {
 		fmt.Printf("Failed to list rancher services: %s\n", err)
 		return
 	}
 
-	environments, err := s.client.Account.List(&client.ListOpts{})
+	environments, err := s.account.List(&client.ListOpts{})
 	if err != nil {
 		fmt.Printf("Failed to get environments: %s\n", err)
 		return
@@ -188,13 +204,13 @@ func (s *ServiceUpdater) doUpgrade(command UpdateCommand, service client.Service
 		StartFirst:             command.StartFirst,
 	}
 	upgrade.ToServiceStrategy = &client.ToServiceUpgradeStrategy{}
-	_, err := s.client.Service.ActionUpgrade(&service, upgrade)
+	_, err := s.service.ActionUpgrade(&service, upgrade)
 	return err
 }
 
 func (s *ServiceUpdater) confirmUpgrade(command UpdateCommand, service client.Service) error {
 	srv, err := utils.Retry(func() (interface{}, error) {
-		s, e := s.client.Service.ById(service.Id)
+		s, e := s.service.ById(service.Id)
 		if e != nil {
 			return nil, e
 		}
@@ -207,7 +223,7 @@ func (s *ServiceUpdater) confirmUpgrade(command UpdateCommand, service client.Se
 		return err
 	}
 
-	srv, err = s.client.Service.ActionFinishupgrade(srv.(*client.Service))
+	srv, err = s.service.ActionFinishupgrade(srv.(*client.Service))
 	if err != nil {
 		return err
 	}
