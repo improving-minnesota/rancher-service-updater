@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -81,7 +82,7 @@ func getEnvOrDefaultInt(key string, defaultValue int) int {
 func main() {
 	config := &Config{
 		EnableLabel:      getEnvOrDefault("AUTOUPDATE_ENABLE_LABEL", "autoupdate.enable"),
-		EnvironmentNames: getEnvOrDefaultArray("AUTOUPDATE_ENVIRONMENT_NAMES", []string{"*"}),
+		EnvironmentNames: getEnvOrDefaultArray("AUTOUPDATE_ENVIRONMENT_NAMES", []string{".*"}),
 		Port:             getEnvOrDefaultInt("AUTOUPDATE_HTTP_PORT", 8080),
 		CattleAccessKey:  os.Getenv("CATTLE_ACCESS_KEY"),
 		CattleSecretKey:  os.Getenv("CATTLE_SECRET_KEY"),
@@ -185,8 +186,7 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 					parts := strings.Split(svc.LaunchConfig.ImageUuid, ":")
 					foundImage = parts[1]
 					foundVer = parts[2]
-					//TODO use pattern matching against config
-					if strings.Contains(strings.ToLower(envs[svc.AccountId]), "dev") {
+					if environmentEnabled(envs[svc.AccountId], s.Config.EnvironmentNames) {
 						if foundImage == wantedImage && ((foundVer < wantedVer) || (wantedVer == "latest")) {
 							fmt.Println("Trying to upgrade...")
 							err := s.doUpgrade(command, svc)
@@ -218,6 +218,18 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 		}
 		services, err = services.Next()
 	}
+}
+
+func environmentEnabled(name string, enabled []string) bool {
+	for _, p := range enabled {
+		pattern, err := regexp.Compile(p)
+		if err == nil {
+			if pattern.MatchString(name) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (s *ServiceUpdater) doUpgrade(command UpdateCommand, service client.Service) error {
