@@ -19,15 +19,36 @@ images and execute updates to those services based on container labels.
 
 ## Enabling Auto-Updating for Rancher Environment
 
-TBD
+The Rancher Service Updater configures itself to only check certain environments for services to automatically update.
+This is done in conjunction with the API restrictions based on the credentials passed to the container.
+That is, if an environment specific key is used, then the updater will only ever try to update service within that environment.
+
+If however, a global/user key is used, then the updater can update services in any environment that that key has access to.
+By default the updater is configured to allow updating of services in any environment.
+This is set via the `AUTOUDPATE_ENVIRONMENT_NAMES` environment variable which should contain a comma (`,`) separated list of regex patterns.
+The default value is `.*`.
+
+In conjunction with a global key, this property can be used to restrict the environments.
+For example, assume a cluster with 3 environments: `dev`, `qa`, and `production`.
+The updater is configured with a global key that has access to all 3 environments.
+To restrict automatic updates to only the `dev` environment, set `AUTOUPDATE_ENVIRONMENT_NAMES=dev`.
+To restrict automatic updates to both the `dev` and `qa` environments, set `AUTOUPDATE_ENVIRONMENT_NAMES=dev,qa`
+
 
 ## Enabling Auto-Updating for a Rancher Service
 
-TBD
+Configure a service to be automatically updated by adding a container label of `autoupdate.enabled=true`.
+Alternatively, the label to check can be specified by setting the `AUTOUPDATE_ENABLE_LABEL` environment variable
 
 ### Determining if update is required
 
-TBD
+| Currently Deployed Version | Newly Published Version | Update? |
+|:---------------------------|:------------------------|:--------|
+| 1.0                        | 2.0                     | `true`  |
+| 2.0                        | 1.3                     | `false` |
+| 1.0                        | latest                  | `true`  |
+| latest                     | latest                  | `true`  |
+| latest                     | 1.0                     | `false` |
 
 ## Running Service Updater on Rancher
 
