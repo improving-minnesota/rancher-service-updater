@@ -5,3 +5,5 @@
 
 An Inversion of Control (IOC) service used to notify Rancher of new container 
 images and execute updates to those services based on container labels.
+
+## Configuring
