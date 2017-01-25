@@ -17,6 +17,37 @@ images and execute updates to those services based on container labels.
 * `CATTLE_SECRET_KEY` - The API secret key for Rancher.
 * `CATTLE_URL` - The Rancher server URL.
 
+## Enabling Auto-Updating for Rancher Environment
+
+TBD
+
+## Enabling Auto-Updating for a Rancher Service
+
+TBD
+
+### Determining if update is required
+
+TBD
+
+## Running Service Updater on Rancher
+
+The Rancher Service Updater relies upon the standard environment variables for providing 
+connection information to create a Rancher client instance.
+
+If running this application as a container on a Rancher cluster itself, you can 
+provide the following service labels to automatically provision the API 
+credentials to the application.
+
+* `io.rancher.container.create_agent=true`
+* `io.rancher.container.agent.role=environment`
+
+_NOTE:_ When using this method, the provisioned API credentials are tied to the
+Rancher environment in which the service is deployed. Thus, it will only have access
+to update services within that same environment.
+
+_NOTE:_ If it is intended to auto-update services in multiple Rancher environments,
+then the API configuration **must** be provided via environment variables.
+
 ## Triggering an upgrade.
 
 Send a post to `/upgrade` with the following JSON payload:
@@ -31,4 +62,11 @@ Send a post to `/upgrade` with the following JSON payload:
 ```
 
 * `docker_image` - the image path that is now available. Optionally start with `docker:`
-* 
+* `confirm` - if the service upgrade should be confirmed/finished if successful
+* `start_first` - Optional. Default of `false`. If true, then sets new services to be started before terminated old services.
+* `timeout` - Optional. Timeout in seconds. Default of 30. Timeout for waiting for service upgrade to complete if `confirm = true`.
+
+## Security
+
+This service provides not mechanism for authentication/authorization. It is the responsibility of the user to properly secure 
+this service such that unauthorized access is not available.
