@@ -91,11 +91,10 @@ func (s *ServiceUpdater) init() {
 func (s *ServiceUpdater) listen() {
 	http.HandleFunc("/upgrade", s.upgrade)
 	http.HandleFunc("/ping", s.ping)
+	log.Printf("Started service on port %d\n", s.Config.Port)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Port), nil)
 	if err != nil {
 		log.Fatalf("Unable to start service on port %d\n", s.Config.Port)
-	} else {
-		log.Printf("Started service on port %d\n", s.Config.Port)
 	}
 }
 
@@ -116,19 +115,20 @@ func (s *ServiceUpdater) upgrade(w http.ResponseWriter, r *http.Request) {
 		utils.SendError(w, err.Error(), 400)
 		return
 	}
+	txt, _ := json.Marshal(command)
+	fmt.Printf("Received upgrade: %s", string(txt))
 	go s.upgradeService(command)
 	w.WriteHeader(200)
 	return
 }
 
 func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
-	var wantedImage, wantedVer string
 	if !strings.HasPrefix(command.Image, "docker:") {
 		command.Image = fmt.Sprintf("docker:%s", command.Image)
 	}
 	parts := strings.Split(command.Image, ":")
-	wantedImage = parts[1]
-	wantedVer = parts[2]
+	wantedImage := parts[1]
+	wantedVer := parts[2]
 
 	services, err := s.service.List(&client.ListOpts{})
 	if err != nil {
@@ -156,8 +156,10 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 	var enabledLabel = s.Config.EnableLabel
 	for services != nil {
 		for _, svc := range services.Data {
+			log.Printf("Checking service: %s", svc.Name)
 			if svc.LaunchConfig != nil {
 				if _, ok := svc.LaunchConfig.Labels[enabledLabel]; ok {
+					log.Printf("Attempting to update service %s\n", svc.Name)
 					parts := strings.Split(svc.LaunchConfig.ImageUuid, ":")
 					foundImage := parts[1]
 					foundVer := parts[2]
@@ -187,6 +189,8 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 							}
 							continue
 						}
+					} else {
+						log.Printf("Updating not enabled for environment %s\n", envs[svc.AccountId])
 					}
 				}
 			}
