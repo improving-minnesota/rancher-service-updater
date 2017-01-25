@@ -118,9 +118,9 @@ func (s *ServiceUpdater) upgrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	txt, _ := json.Marshal(command)
-	// if s.Config.Debug {
-	fmt.Printf("Received upgrade: %s", string(txt))
-	// }
+	if s.Config.Debug {
+		fmt.Printf("Received upgrade: %s", string(txt))
+	}
 	go s.upgradeService(command)
 	w.WriteHeader(200)
 	return
@@ -160,14 +160,21 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 	var enabledLabel = s.Config.EnableLabel
 	for services != nil {
 		for _, svc := range services.Data {
-			log.Printf("Checking service: %s", svc.Name)
+			if s.Config.Debug {
+				log.Printf("Checking service: %s", svc.Name)
+			}
 			if svc.LaunchConfig != nil {
-				if _, ok := svc.LaunchConfig.Labels[enabledLabel]; ok {
-					log.Printf("Attempting to update service %s\n", svc.Name)
+				if enable, ok := svc.LaunchConfig.Labels[enabledLabel]; ok && enable != "false" {
+					if s.Config.Debug {
+						log.Printf("Attempting to update service %s\n", svc.Name)
+					}
 					parts := strings.Split(svc.LaunchConfig.ImageUuid, ":")
 					foundImage := parts[1]
 					foundVer := parts[2]
 					if utils.EnvironmentEnabled(envs[svc.AccountId], s.Config.EnvironmentNames) {
+						if s.Config.Debug {
+							log.Printf("Service %s Comparision: found-image %s, found-version %s, wanted-image %s, wanted-version %s\n", svc.Name, foundImage, foundVer, wantedImage, wantedVer)
+						}
 						if foundImage == wantedImage && ((foundVer < wantedVer) || (wantedVer == "latest")) {
 							fmt.Println("Trying to upgrade...")
 							err := s.doUpgrade(command, svc)
@@ -192,8 +199,10 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 								}
 							}
 							continue
+						} else if s.Config.Debug {
+							log.Printf("Updating enabled from environment [%s], service [%s], but published version [%s] was not newer than current version [%s]\n", envs[svc.AccountId], svc.Name, wantedVer, foundVer)
 						}
-					} else {
+					} else if s.Config.Debug {
 						log.Printf("Updating not enabled for environment %s\n", envs[svc.AccountId])
 					}
 				}
