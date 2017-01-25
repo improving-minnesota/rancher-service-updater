@@ -25,6 +25,7 @@ type (
 		CattleURL        string
 		SlackWebhookURL  string
 		SlackBotName     string
+		Debug            bool
 	}
 
 	//ServiceUpdater is the service
@@ -67,6 +68,7 @@ func main() {
 		CattleURL:        os.Getenv("CATTLE_URL"),
 		SlackWebhookURL:  os.Getenv("AUTOUPDATE_SLACK_WEBHOOK_URL"),
 		SlackBotName:     utils.GetEnvOrDefault("AUTOUPDATE_SLACK_BOT_NAME", "rancher-service-updater"),
+		Debug:            os.Getenv("DEBUG") != "",
 	}
 	serviceUpdater := &ServiceUpdater{
 		Config: config,
@@ -116,7 +118,9 @@ func (s *ServiceUpdater) upgrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	txt, _ := json.Marshal(command)
+	// if s.Config.Debug {
 	fmt.Printf("Received upgrade: %s", string(txt))
+	// }
 	go s.upgradeService(command)
 	w.WriteHeader(200)
 	return
