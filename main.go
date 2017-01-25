@@ -130,9 +130,9 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 	if !strings.HasPrefix(command.Image, "docker:") {
 		command.Image = fmt.Sprintf("docker:%s", command.Image)
 	}
-	parts := strings.Split(command.Image, ":")
-	wantedImage := parts[1]
-	wantedVer := parts[2]
+	idx := strings.LastIndex(command.Image, ":")
+	wantedImage := command.Image[0 : idx-1]
+	wantedVer := command.Image[idx:]
 
 	services, err := s.service.List(&client.ListOpts{})
 	if err != nil {
@@ -168,9 +168,10 @@ func (s *ServiceUpdater) upgradeService(command UpdateCommand) {
 					if s.Config.Debug {
 						log.Printf("Attempting to update service %s\n", svc.Name)
 					}
-					parts := strings.Split(svc.LaunchConfig.ImageUuid, ":")
-					foundImage := parts[1]
-					foundVer := parts[2]
+					idx := strings.LastIndex(svc.LaunchConfig.ImageUuid, ":")
+
+					foundImage := svc.LaunchConfig.ImageUuid[0 : idx-1]
+					foundVer := svc.LaunchConfig.ImageUuid[idx:]
 					if utils.EnvironmentEnabled(envs[svc.AccountId], s.Config.EnvironmentNames) {
 						if s.Config.Debug {
 							log.Printf("Service %s Comparision: found-image %s, found-version %s, wanted-image %s, wanted-version %s\n", svc.Name, foundImage, foundVer, wantedImage, wantedVer)
